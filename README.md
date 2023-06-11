@@ -13,6 +13,9 @@ To avoid writing abstractions and boilerplate code, we are going to depend on Sp
 JPA for persistence on relational database and Spring Data Redis for caching. The source code should be evaluated using
 automated tests with database containers provisioned by TestContainers and tests managed by JUnit.
 
+Other approaches to cache are [Write Through](https://github.com/lucasvalenteds/poc-redis-cache-write-through)
+and [Cache Aside](https://github.com/lucasvalenteds/poc-redis-cache-aside).
+
 ## How to run
 
 | Description | Command          |
