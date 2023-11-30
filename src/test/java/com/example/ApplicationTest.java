@@ -1,9 +1,12 @@
 package com.example;
 
+import com.example.person.Person;
+import com.example.person.PersonRepository;
+import com.example.person.PersonServiceCacheProperties;
 import com.example.person.api.PersonRequest;
 import com.example.person.api.PersonResponse;
+import org.awaitility.Awaitility;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.RepeatedTest;
@@ -21,6 +24,8 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -32,6 +37,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,13 +56,14 @@ class ApplicationTest {
     @Autowired
     private WebTestClient webTestClient;
 
-    @AfterAll
-    public static void afterAll() throws InterruptedException {
-        // Delaying test suite finish to make sure we can
-        // get log statements demonstrating people created
-        // being written back to the relational database
-        Thread.sleep(2000);
-    }
+    @Autowired
+    private PersonServiceCacheProperties cacheProperties;
+
+    @Autowired
+    private PersonRepository personRepository;
+
+    @Autowired
+    private RedisTemplate<String, Person> personRedisTemplate;
 
     @RepeatedTest(10)
     @Order(1)
@@ -65,7 +72,6 @@ class ApplicationTest {
                 .name("John Smith")
                 .age(45)
                 .build();
-
         final var exchangeResult = webTestClient.post()
                 .uri("/people")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -95,6 +101,23 @@ class ApplicationTest {
         assertEquals(personId, personResponse.getId());
         assertEquals(personRequest.getName(), personResponse.getName());
         assertEquals(personRequest.getAge(), personResponse.getAge());
+    }
+
+    @Test
+    @Order(3)
+    void writeBackJobPersistedPeopleInTheDatabaseAndDeletedThemFromCache() {
+        final var twoSeconds = Duration.ofMillis(cacheProperties.getWriteBackRate() * 2);
+
+        // Checking all people were persisted in the database by the write back job
+        Awaitility.await()
+                .atMost(twoSeconds)
+                .untilAsserted(() -> assertEquals(10, personRepository.count()));
+
+        // Checking all people persisted were removed from the cache database
+        final var cacheEntries = personRedisTemplate.boundSetOps(cacheProperties.getWriteBackKey());
+        Awaitility.await()
+                .atMost(twoSeconds)
+                .untilAsserted(() -> assertEquals(0, cacheEntries.size()));
     }
 
     @Test
@@ -180,7 +203,7 @@ class ApplicationTest {
         return UUID.fromString(lastSegment);
     }
 
-    @TestConfiguration(proxyBeanMethods = false)
+    @TestConfiguration
     static class TestConfig {
 
         @Bean
@@ -191,9 +214,20 @@ class ApplicationTest {
 
         @Bean
         @ServiceConnection(name = "redis", type = RedisConnectionDetails.class)
-        GenericContainer<?> REDIS_CONTAINER () {
+        GenericContainer<?> REDIS_CONTAINER() {
             return new GenericContainer<>(DockerImageName.parse("redis"))
                     .withExposedPorts(6379);
+        }
+
+        @Bean
+        @Primary
+        PersonServiceCacheProperties personServiceCacheProperties() {
+            final var properties = new PersonServiceCacheProperties();
+
+            properties.setWriteBackKey("person:write_back_test");
+            properties.setWriteBackRate(1000 /* milliseconds */);
+
+            return properties;
         }
     }
 }
