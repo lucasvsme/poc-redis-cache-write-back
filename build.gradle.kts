@@ -1,6 +1,6 @@
 plugins {
-    id("org.springframework.boot") version "3.0.0-M3"
-    id("io.spring.dependency-management") version "1.0.11.RELEASE"
+    id("org.springframework.boot") version "3.2.0"
+    id("io.spring.dependency-management") version "1.1.4"
     java
 }
 
@@ -15,11 +15,10 @@ configurations {
 
 repositories {
     mavenCentral()
-    maven(url = "https://repo.spring.io/milestone")
 }
 
 ext {
-    set("testcontainersVersion", "1.17.3")
+    set("testcontainersVersion", "1.19.3")
 }
 
 dependencies {
@@ -45,7 +44,7 @@ dependencyManagement {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(18))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
