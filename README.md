@@ -18,9 +18,10 @@ and [Cache Aside](https://github.com/lucasvalenteds/poc-redis-cache-aside).
 
 ## How to run
 
-| Description | Command          |
-|:------------|:-----------------|
-| Run tests   | `./gradlew test` |
+| Description     | Command             |
+|:----------------|:--------------------|
+| Run tests       | `./gradlew test`    |
+| Run application | `./gradlew bootRun` |
 
 ## Preview
 

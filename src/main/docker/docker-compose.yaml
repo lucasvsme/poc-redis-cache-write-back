@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  cache:
+    image: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - poc_redis_cache
+    environment:
+      REDIS_PASSWORD: password
+    volumes:
+      - redis_data:/bitnami/redis/data
+    restart: unless-stopped
+
+  database:
+    image: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - poc_redis_cache
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgresql:/var/lib/postgresql
+      - postgresql_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+networks:
+  poc_redis_cache:
+    driver: bridge
+
+volumes:
+  postgresql:
+  postgresql_data:
+  redis_data:
